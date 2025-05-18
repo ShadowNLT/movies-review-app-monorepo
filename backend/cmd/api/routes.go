@@ -13,6 +13,7 @@ func (app *application) routes() http.Handler {
 
 	// movie Reviews
 	router.HandlerFunc(http.MethodPost, "/v1/reviews", app.createMovieReviewHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/reviews/:id", app.showMovieReviewHandler)
 
 	return router
 }
