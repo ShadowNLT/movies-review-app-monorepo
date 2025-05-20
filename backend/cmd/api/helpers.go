@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
@@ -15,4 +16,27 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func (app *application) writeJSON(w http.ResponseWriter, statusCode int, data any, headers http.Header) error {
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	// Add a new line at the end to make it easier to view in terminal applications
+	jsonBytes = append(jsonBytes, '\n')
+
+	// Go through the header map and set the headers that we need to have set
+	for key, value := range headers {
+		w.Header()[key] = value
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_, err = w.Write(jsonBytes)
+	if err != nil {
+		return err
+	}
+	return nil
 }
