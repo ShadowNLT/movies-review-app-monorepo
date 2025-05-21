@@ -41,7 +41,7 @@ func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Re
 		Version: 1,
 	}
 
-	err = app.writeJSON(w, http.StatusOK, movieReview, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"review": movieReview}, nil)
 	if err != nil {
 		app.logger.Error(err.Error())
 		http.Error(w, constants.ErrorMessages[http.StatusInternalServerError], http.StatusInternalServerError)
