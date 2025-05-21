@@ -9,7 +9,18 @@ import (
 
 // Handler for "POST /v1/reviews" endpoint
 func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Create Movie Review")
+	var input struct {
+		ImdbID           string `json:"imdb_id"`
+		Rating           int8   `json:"rating"`
+		StatementComment string `json:"statement_comment"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+	fmt.Fprintf(w, "%+v\n", input)
 }
 
 // Handler for "GET /v1/reviews/:id" endpoint
