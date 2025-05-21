@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cinepulse.nlt.net/internal/constants"
 	"cinepulse.nlt.net/internal/data"
 	"fmt"
 	"net/http"
@@ -18,7 +17,7 @@ func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Re
 
 	id, err := app.readIDParam(r)
 	if err != nil {
-		http.NotFound(w, r)
+		app.notFoundResponse(w, r)
 		return
 	}
 
@@ -43,7 +42,6 @@ func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Re
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"review": movieReview}, nil)
 	if err != nil {
-		app.logger.Error(err.Error())
-		http.Error(w, constants.ErrorMessages[http.StatusInternalServerError], http.StatusInternalServerError)
+		app.serverErrorResponse(w, r, err)
 	}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cinepulse.nlt.net/internal/constants"
 	"net/http"
 )
 
@@ -14,8 +13,6 @@ func (app *application) healthcheckHandler(w http.ResponseWriter, r *http.Reques
 
 	err := app.writeJSON(w, http.StatusOK, data, nil)
 	if err != nil {
-		app.logger.Error(err.Error())
-		http.Error(w, constants.ErrorMessages[http.StatusInternalServerError], http.StatusInternalServerError)
-		return
+		app.serverErrorResponse(w, r, err)
 	}
 }
