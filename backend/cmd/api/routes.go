@@ -21,5 +21,5 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/reviews", app.createMovieReviewHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/reviews/:id", app.showMovieReviewHandler)
 
-	return router
+	return app.recoverPanic(router)
 }
