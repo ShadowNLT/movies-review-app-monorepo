@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type envelope map[string]any
@@ -46,12 +47,20 @@ func (app *application) writeJSON(w http.ResponseWriter, statusCode int, data en
 	return nil
 }
 
-func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	err := json.NewDecoder(r.Body).Decode(dst)
+func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any, maxBytes int64) error {
+	// Each handler knows exactly the maxBytes allowed
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+
+	// create a JSON decoder and  configure it not to allow unknown fields
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	err := dec.Decode(dst)
 	if err != nil {
 		var syntaxError *json.SyntaxError
 		var unmarshalTypeError *json.UnmarshalTypeError
 		var invalidUnmarshalError *json.InvalidUnmarshalError
+		var maxBytesError *http.MaxBytesError
 
 		switch {
 
@@ -78,6 +87,20 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 		case errors.Is(err, io.EOF):
 			return errors.New("body must not be empty")
 
+		// If the JSON contains a field which cannot be mapped to the target destination
+		// then Decode() will now return an error message in the format "json: unknown
+		// field "<name>"". We check for this, extract the field name from the error,
+		// and interpolate it into our custom error message. Note that there's an open
+		// issue at https://github.com/golang/go/issues/29035 regarding turning this
+		// into a distinct error type in the future.
+		case strings.HasPrefix(err.Error(), "json: unknown field "):
+			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
+			return fmt.Errorf("body contains unknown field %s", fieldName)
+
+		// This happens if the body exceeded the maxBytes
+		case errors.As(err, &maxBytesError):
+			return fmt.Errorf("body must not be larger than %d bytes", maxBytesError.Limit)
+
 		// This happens if we pass something that is not a non-nil pointer as destination
 		// which should never be the case to begin with. This is why it makes sense to panic
 		// here as this error only happen due to a mistake in the code
@@ -87,6 +110,12 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 		default:
 			return err
 		}
+	}
+
+	// Call Decoded() again to make sure the request body only contained a single JSON value
+	err = dec.Decode(&struct{}{})
+	if !errors.Is(err, io.EOF) {
+		return errors.New("body must contain a single JSON value")
 	}
 
 	return nil

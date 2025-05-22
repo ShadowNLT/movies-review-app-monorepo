@@ -15,7 +15,19 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 		StatementComment string `json:"statement_comment"`
 	}
 
-	err := app.readJSON(w, r, &input)
+	// To calculate the maxBytes that this payload can ever be
+	// We look at each property.
+	// In the following, the overhead mentioned are the extra bytes needed to encode
+	// the JSON property name like "imdb_id" or "rating"
+	// An imdb_id can take up to 9 bytes (
+	// a rating is an integer value in [1:5] which only needs a byte
+	// StatementComment has at most 280 Characters which are UTF-8 characters for which a rune(32 bits) are needed
+	// which means we need 4 * 280 bytes ~= 1120 bytes
+	// The overhead to encode for each field are 11 + 10 + 23 = 64 bytes
+	// Which gives a total of 1194 bytes, and we will round it to the next power of two: 2048 bytes
+	maxBytes := int64(2048)
+
+	err := app.readJSON(w, r, &input, maxBytes)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
 		return
