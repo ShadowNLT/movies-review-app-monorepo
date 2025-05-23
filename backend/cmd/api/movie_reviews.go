@@ -2,6 +2,7 @@ package main
 
 import (
 	"cinepulse.nlt.net/internal/data"
+	"cinepulse.nlt.net/internal/validator"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,11 +10,7 @@ import (
 
 // Handler for "POST /v1/reviews" endpoint
 func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		ImdbID           string `json:"imdb_id"`
-		Rating           int8   `json:"rating"`
-		StatementComment string `json:"statement_comment"`
-	}
+	var input data.CreateMovieReviewInput
 
 	// To calculate the maxBytes that this payload can ever be
 	// We look at each property.
@@ -32,6 +29,13 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 		app.badRequestResponse(w, r, err)
 		return
 	}
+
+	v := validator.New()
+	if data.ValidateCreateMovieReviewInput(v, &input); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
 	fmt.Fprintf(w, "%+v\n", input)
 }
 

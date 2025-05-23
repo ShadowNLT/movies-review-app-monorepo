@@ -2,6 +2,7 @@ package main
 
 import (
 	"cinepulse.nlt.net/internal/constants"
+	"cinepulse.nlt.net/internal/validator"
 	"fmt"
 	"net/http"
 )
@@ -48,4 +49,9 @@ func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.
 // This helper is for when we want to send a 400 Bad request to the client
 func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
+}
+
+// This helper is for when we want to send a 422 after a failed input validation from our validator
+func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors validator.ErrorMap) {
+	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
