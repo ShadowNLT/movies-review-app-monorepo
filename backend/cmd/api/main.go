@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cinepulse.nlt.net/internal/data"
 	"context"
 	"database/sql"
 	"flag"
@@ -28,6 +29,7 @@ type config struct {
 type application struct {
 	config config
 	logger *slog.Logger
+	models data.Models
 }
 
 func main() {
@@ -66,6 +68,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.NewModels(db),
 	}
 
 	srv := &http.Server{

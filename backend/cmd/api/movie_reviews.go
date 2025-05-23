@@ -36,7 +36,20 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	fmt.Fprintf(w, "%+v\n", input)
+	result, err := app.models.MovieReviews.Insert(&input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	// We include a Location header to let the client know which URL they can find
+	// The newly-created resource at.
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/reviews/%d", result.ID))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"review": result}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 // Handler for "GET /v1/reviews/:id" endpoint

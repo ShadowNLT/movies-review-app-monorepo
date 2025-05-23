@@ -2,6 +2,7 @@ package data
 
 import (
 	"cinepulse.nlt.net/internal/validator"
+	"database/sql"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -43,10 +44,51 @@ type CreateMovieReviewInput struct {
 	StatementComment string `json:"statement_comment"`
 }
 
+type CreatedMovieReview struct {
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Version   int64     `json:"version"`
+}
+
 func ValidateCreateMovieReviewInput(v *validator.Validator, input *CreateMovieReviewInput) {
 	v.AddErrorIfNot(strings.TrimSpace(input.ImdbID) != "", "imdb_id", "must be provided")
 	v.AddErrorIfNot(input.Rating >= 1, "rating", "must be greater than zero")
 	v.AddErrorIfNot(input.Rating <= 5, "rating", "must be at most equal to 5")
 	v.AddErrorIfNot(input.StatementComment != "", "statement_comment", "must be provided")
 	v.AddErrorIfNot(utf8.RuneCountInString(input.StatementComment) <= 280, "statement_comment", "must not have more than 280 characters")
+}
+
+type MovieReviewModel struct {
+	DB *sql.DB
+}
+
+func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (CreatedMovieReview, error) {
+	query := `
+         INSERT INTO movie_reviews (
+                                    imdb_id,
+                                    rating,
+                                    statement_comment
+         )
+         VALUES ($1, $2, $3)
+         RETURNING id, created_at, version;
+   `
+	var result CreatedMovieReview
+	args := []any{review.ImdbID, review.Rating, review.StatementComment}
+	err := m.DB.QueryRow(query, args...).Scan(&result.ID, &result.CreatedAt, &result.Version)
+	if err != nil {
+		return CreatedMovieReview{}, err
+	}
+	return result, nil
+}
+
+func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
+	return nil, nil
+}
+
+func (m MovieReviewModel) Update(review *MovieReview) error {
+	return nil
+}
+
+func (m MovieReviewModel) Delete(id int64) error {
+	return nil
 }
