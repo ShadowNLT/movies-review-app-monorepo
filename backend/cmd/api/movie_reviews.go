@@ -57,7 +57,7 @@ func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Re
 
 	id, err := app.readIDParam(r)
 	if err != nil {
-		app.notFoundResponse(w, r)
+		app.badRequestResponse(w, r, err)
 		return
 	}
 
@@ -73,6 +73,73 @@ func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"movieReview": movieReview}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// Handler for "DELETE /v1/reviews/:id" endpoint
+func (app *application) deleteMovieReviewHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	err = app.models.MovieReviews.Delete(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "movie review successfully deleted"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// Handler for "PATCH /v1/reviews/:id" endpoint
+func (app *application) updateMovieReviewHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	var input data.UpdateMovieReviewInput
+	err = app.readJSON(w, r, &input, 2048)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Rating == nil && input.StatementComment == nil {
+		app.badRequestResponse(w, r, errors.New("at least one of rating or statement_comment must be specified"))
+		return
+	}
+
+	v := validator.New()
+	if data.ValidateUpdateMovieReviewInput(v, &input); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	result, err := app.models.MovieReviews.Update(&input, id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+			return
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+	}
+	err = app.writeJSON(w, http.StatusOK, envelope{"movieReview": result}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
