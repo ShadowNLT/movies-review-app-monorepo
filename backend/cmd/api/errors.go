@@ -55,3 +55,8 @@ func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Reques
 func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors validator.ErrorMap) {
 	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
+
+// This helper is for when we want to send a 409 Conflict response
+func (app *application) conflictResponse(w http.ResponseWriter, r *http.Request, err error) {
+	app.errorResponse(w, r, http.StatusConflict, err.Error())
+}

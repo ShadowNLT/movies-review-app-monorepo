@@ -5,9 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/lib/pq"
 	"strings"
 	"time"
 	"unicode/utf8"
+)
+
+var (
+	ErrDuplicateImdbID = errors.New("duplicate imdb_id")
 )
 
 type MovieReviewReaction = string
@@ -95,7 +100,13 @@ func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (*CreatedMovieR
 	args := []any{review.ImdbID, review.Rating, review.StatementComment}
 	err := m.DB.QueryRow(query, args...).Scan(&result.ID, &result.CreatedAt, &result.Version)
 	if err != nil {
-		return &CreatedMovieReview{}, err
+		var pqErr *pq.Error
+		switch {
+		case errors.As(err, &pqErr) && pqErr.Code.Name() == "unique_violation":
+			return &CreatedMovieReview{}, ErrDuplicateImdbID
+		default:
+			return &CreatedMovieReview{}, err
+		}
 	}
 	return &result, nil
 }

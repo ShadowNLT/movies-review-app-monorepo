@@ -38,7 +38,12 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 
 	result, err := app.models.MovieReviews.Insert(&input)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrDuplicateImdbID):
+			app.conflictResponse(w, r, errors.New("a review for the same imdb ID already exists"))
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 	// We include a Location header to let the client know which URL they can find
