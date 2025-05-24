@@ -3,9 +3,9 @@ package main
 import (
 	"cinepulse.nlt.net/internal/data"
 	"cinepulse.nlt.net/internal/validator"
+	"errors"
 	"fmt"
 	"net/http"
-	"time"
 )
 
 // Handler for "POST /v1/reviews" endpoint
@@ -61,26 +61,18 @@ func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Create a placeholder instance of the MovieReview struct
-	movieReview := data.MovieReview{
-		ID:        id,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		ImdbID:    "tt24069848",
-		Rating:    4,
-		Statement: data.MovieReviewStatement{
-			Comment:   "Lorem ipsum",
-			CreatedAt: time.Time{},
-			UpdatedAt: time.Time{},
-		},
-		Reactions: data.MovieReviewReactionMap{
-			data.Agree: []int64{1, 3, 4},
-			data.Funny: []int64{5, 6},
-		},
-		Version: 1,
+	movieReview, err := app.models.MovieReviews.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"review": movieReview}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"movieReview": movieReview}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

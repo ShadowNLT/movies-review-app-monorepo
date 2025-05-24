@@ -3,6 +3,7 @@ package data
 import (
 	"cinepulse.nlt.net/internal/validator"
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -28,14 +29,14 @@ type MovieReviewStatement struct {
 }
 
 type MovieReview struct {
-	ID        int64                  `json:"id"`
-	CreatedAt time.Time              `json:"created_at"`
-	UpdatedAt time.Time              `json:"updated_at"`
-	Reactions MovieReviewReactionMap `json:"reactions"`
-	ImdbID    string                 `json:"imdb_id"`
-	Rating    int8                   `json:"rating"`
-	Statement MovieReviewStatement   `json:"statement"`
-	Version   int64                  `json:"version"` // This will be incremented every time the user edits any of the editable information about the review
+	ID        int64                   `json:"id"`
+	CreatedAt time.Time               `json:"created_at"`
+	UpdatedAt time.Time               `json:"updated_at"`
+	Reactions *MovieReviewReactionMap `json:"reactions"`
+	ImdbID    string                  `json:"imdb_id"`
+	Rating    int8                    `json:"rating"`
+	Statement MovieReviewStatement    `json:"statement"`
+	Version   int64                   `json:"version"` // This will be incremented every time the user edits any of the editable information about the review
 }
 
 type CreateMovieReviewInput struct {
@@ -82,7 +83,39 @@ func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (CreatedMovieRe
 }
 
 func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
-	return nil, nil
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	query := `
+		 SELECT id, imdb_id, rating, statement_comment, statement_created_at, statement_updated_at,
+                created_at, updated_at, version
+         FROM movie_reviews
+		 WHERE id = $1;`
+
+	var movieReview MovieReview
+	movieReview.Reactions = nil
+	err := m.DB.QueryRow(query, id).Scan(
+		&movieReview.ID,
+		&movieReview.ImdbID,
+		&movieReview.Rating,
+		&movieReview.Statement.Comment,
+		&movieReview.Statement.CreatedAt,
+		&movieReview.Statement.UpdatedAt,
+		&movieReview.CreatedAt,
+		&movieReview.UpdatedAt,
+		&movieReview.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &movieReview, nil
 }
 
 func (m MovieReviewModel) Update(review *MovieReview) error {
