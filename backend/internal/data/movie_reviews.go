@@ -81,7 +81,7 @@ type MovieReviewModel struct {
 	DB *sql.DB
 }
 
-func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (CreatedMovieReview, error) {
+func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (*CreatedMovieReview, error) {
 	query := `
          INSERT INTO movie_reviews (
                                     imdb_id,
@@ -95,9 +95,9 @@ func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (CreatedMovieRe
 	args := []any{review.ImdbID, review.Rating, review.StatementComment}
 	err := m.DB.QueryRow(query, args...).Scan(&result.ID, &result.CreatedAt, &result.Version)
 	if err != nil {
-		return CreatedMovieReview{}, err
+		return &CreatedMovieReview{}, err
 	}
-	return result, nil
+	return &result, nil
 }
 
 func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
@@ -136,7 +136,7 @@ func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
 	return &movieReview, nil
 }
 
-func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id int64) (MovieReview, error) {
+func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id int64) (*MovieReview, error) {
 	var (
 		args       []any
 		setClauses []string
@@ -182,13 +182,13 @@ func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id int64) (Movie
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return MovieReview{}, ErrRecordNotFound
+			return &MovieReview{}, ErrRecordNotFound
 		default:
-			return MovieReview{}, err
+			return &MovieReview{}, err
 		}
 	}
 
-	return movieReview, nil
+	return &movieReview, nil
 }
 
 func (m MovieReviewModel) Delete(id int64) error {
