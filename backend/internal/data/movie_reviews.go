@@ -111,6 +111,29 @@ func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (*CreatedMovieR
 	return &result, nil
 }
 
+func (m MovieReviewModel) GetVersionFor(id int64) (int64, error) {
+	if id < 1 {
+		return 0, ErrRecordNotFound
+	}
+
+	query := `
+         SELECT version
+         FROM movie_reviews
+         WHERE id = $1;`
+
+	var version int64
+	err := m.DB.QueryRow(query, id).Scan(&version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return 0, ErrRecordNotFound
+		default:
+			return 0, err
+		}
+	}
+	return version, nil
+}
+
 func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
 	if id < 1 {
 		return nil, ErrRecordNotFound
@@ -147,7 +170,7 @@ func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
 	return &movieReview, nil
 }
 
-func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id int64) (*MovieReview, error) {
+func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id, version int64) (*MovieReview, error) {
 	var (
 		args       []any
 		setClauses []string
@@ -169,13 +192,14 @@ func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id int64) (*Movi
 	setClauses = append(setClauses, "updated_at = now()", "version = version + 1")
 
 	args = append(args, id)
+	args = append(args, version)
 	query := fmt.Sprintf(`
 		UPDATE movie_reviews
         SET %s
-        WHERE id = $%d
+        WHERE id = $%d AND version = $%d
         RETURNING id, imdb_id, rating, statement_comment, 
         statement_created_at, statement_updated_at, created_at, 
-        updated_at, version`, strings.Join(setClauses, ", "), argCount)
+        updated_at, version`, strings.Join(setClauses, ", "), argCount, argCount+1)
 
 	var movieReview MovieReview
 	movieReview.Reactions = nil
@@ -193,7 +217,7 @@ func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id int64) (*Movi
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return &MovieReview{}, ErrRecordNotFound
+			return &MovieReview{}, ErrEditConflict
 		default:
 			return &MovieReview{}, err
 		}

@@ -115,7 +115,17 @@ func (app *application) updateMovieReviewHandler(w http.ResponseWriter, r *http.
 		app.badRequestResponse(w, r, err)
 		return
 	}
-
+	// Fetch the version of the movieReview with given ID
+	movieReviewVersion, err := app.models.MovieReviews.GetVersionFor(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
 	var input data.UpdateMovieReviewInput
 	err = app.readJSON(w, r, &input, 2048)
 	if err != nil {
@@ -134,11 +144,11 @@ func (app *application) updateMovieReviewHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	result, err := app.models.MovieReviews.Update(&input, id)
+	result, err := app.models.MovieReviews.Update(&input, id, movieReviewVersion)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
-			app.notFoundResponse(w, r)
+		case errors.Is(err, data.ErrEditConflict):
+			app.conflictResponse(w, r, errors.New("unable to update the record due to an edit conflict, please try again"))
 			return
 		default:
 			app.serverErrorResponse(w, r, err)

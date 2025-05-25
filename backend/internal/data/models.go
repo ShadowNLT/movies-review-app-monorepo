@@ -5,9 +5,9 @@ import (
 	"errors"
 )
 
-// ErrRecordNotFound is for when we are looking up something that doesn't exist in our database
 var (
 	ErrRecordNotFound = errors.New("record not found")
+	ErrEditConflict   = errors.New("edit conflict")
 )
 
 type Models struct {
