@@ -57,6 +57,33 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 	}
 }
 
+// Handler for "GET /v1/reviews" endpoint
+func (app *application) listMovieReviewsHandler(w http.ResponseWriter, r *http.Request) {
+	var input data.ListMovieReviewsQueryInput
+
+	v := validator.New()
+	qs := r.URL.Query()
+
+	input.Page = app.readInt(qs, "page", 1, v)
+	input.PageSize = app.readInt(qs, "page_size", 20, v)
+
+	if data.ValidateListMovieReviewsQueryInput(v, &input); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	reviews, metadata, err := app.models.MovieReviews.GetAll(&input)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie_reviews": reviews, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 // Handler for "GET /v1/reviews/:id" endpoint
 func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Request) {
 

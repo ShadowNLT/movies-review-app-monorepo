@@ -1,12 +1,14 @@
 package main
 
 import (
+	"cinepulse.nlt.net/internal/validator"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -119,4 +121,21 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	}
 
 	return nil
+}
+
+// readInt() reads a string value from the query string and converts it to an integer before
+// returning. If no match is found, it returns the provided default value
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+	s := qs.Get(key)
+
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		v.AddError(key, "must be an integer")
+		return defaultValue
+	}
+	return i
 }

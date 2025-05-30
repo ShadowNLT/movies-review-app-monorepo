@@ -18,6 +18,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
 
 	// movie Reviews
+	router.HandlerFunc(http.MethodGet, "/v1/reviews", app.listMovieReviewsHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/reviews", app.createMovieReviewHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/reviews/:id", app.showMovieReviewHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/reviews/:id", app.updateMovieReviewHandler)

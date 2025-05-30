@@ -2,6 +2,7 @@ package data
 
 import (
 	"cinepulse.nlt.net/internal/validator"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -12,7 +13,8 @@ import (
 )
 
 var (
-	ErrDuplicateImdbID = errors.New("duplicate imdb_id")
+	ErrDuplicateImdbID     = errors.New("duplicate imdb_id")
+	RequestTimeOutDuration = 3 * time.Second
 )
 
 type MovieReviewReaction = string
@@ -51,6 +53,19 @@ type CreateMovieReviewInput struct {
 	StatementComment string `json:"statement_comment"`
 }
 
+type ListMovieReviewsQueryInput struct {
+	Page     int
+	PageSize int
+}
+
+func (i ListMovieReviewsQueryInput) limit() int {
+	return i.PageSize
+}
+
+func (i ListMovieReviewsQueryInput) offset() int {
+	return (i.Page - 1) * i.PageSize
+}
+
 type CreatedMovieReview struct {
 	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -82,6 +97,13 @@ func ValidateUpdateMovieReviewInput(v *validator.Validator, input *UpdateMovieRe
 	}
 }
 
+func ValidateListMovieReviewsQueryInput(v *validator.Validator, input *ListMovieReviewsQueryInput) {
+	v.AddErrorIfNot(input.Page > 0, "page", "must be greater than zero")
+	v.AddErrorIfNot(input.Page <= 10_000_000, "page", "must be a maximum of 10 million")
+	v.AddErrorIfNot(input.PageSize > 0, "page_size", "must be greater than zero")
+	v.AddErrorIfNot(input.PageSize <= 100, "page_size", "must be a maximum of 100")
+}
+
 type MovieReviewModel struct {
 	DB *sql.DB
 }
@@ -98,7 +120,9 @@ func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (*CreatedMovieR
    `
 	var result CreatedMovieReview
 	args := []any{review.ImdbID, review.Rating, review.StatementComment}
-	err := m.DB.QueryRow(query, args...).Scan(&result.ID, &result.CreatedAt, &result.Version)
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeOutDuration)
+	defer cancel()
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&result.ID, &result.CreatedAt, &result.Version)
 	if err != nil {
 		var pqErr *pq.Error
 		switch {
@@ -122,7 +146,10 @@ func (m MovieReviewModel) GetVersionFor(id int64) (int64, error) {
          WHERE id = $1;`
 
 	var version int64
-	err := m.DB.QueryRow(query, id).Scan(&version)
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeOutDuration)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(&version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -147,7 +174,11 @@ func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
 
 	var movieReview MovieReview
 	movieReview.Reactions = nil
-	err := m.DB.QueryRow(query, id).Scan(
+
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeOutDuration)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&movieReview.ID,
 		&movieReview.ImdbID,
 		&movieReview.Rating,
@@ -203,7 +234,10 @@ func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id, version int6
 
 	var movieReview MovieReview
 	movieReview.Reactions = nil
-	err := m.DB.QueryRow(query, args...).Scan(
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeOutDuration)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
 		&movieReview.ID,
 		&movieReview.ImdbID,
 		&movieReview.Rating,
@@ -235,7 +269,10 @@ func (m MovieReviewModel) Delete(id int64) error {
 		DELETE FROM movie_reviews
 		WHERE id = $1;`
 
-	result, err := m.DB.Exec(query, id)
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeOutDuration)
+	defer cancel()
+
+	result, err := m.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
@@ -249,4 +286,69 @@ func (m MovieReviewModel) Delete(id int64) error {
 	}
 	return nil
 
+}
+
+func (m MovieReviewModel) GetAll(queryInput *ListMovieReviewsQueryInput) (reviews []*MovieReview, metadata Metadata, err error) {
+	query := `
+       	SELECT count(*) OVER(), id, imdb_id, rating, statement_comment, statement_created_at, statement_updated_at, created_at, updated_at, version
+        FROM movie_reviews
+       	ORDER BY updated_at DESC
+       	LIMIT $1 OFFSET $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeOutDuration)
+	defer cancel()
+
+	// Get the total Count of Records
+	totalRecords := 0
+	err = m.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM movie_reviews").Scan(&totalRecords)
+
+	args := []any{queryInput.limit(), queryInput.offset()}
+
+	rows, err := m.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+
+	defer func(rows *sql.Rows) {
+		if cErr := rows.Close(); cErr != nil {
+			if err == nil {
+				err = cErr
+			} else {
+				err = errors.Join(
+					err,
+					cErr,
+				)
+			}
+		}
+	}(rows)
+
+	reviews = []*MovieReview{}
+	totalPaginatedRecords := 0
+
+	for rows.Next() {
+		var review MovieReview
+		review.Reactions = nil
+
+		err := rows.Scan(
+			&totalPaginatedRecords,
+			&review.ID,
+			&review.ImdbID,
+			&review.Rating,
+			&review.Statement.Comment,
+			&review.Statement.CreatedAt,
+			&review.Statement.UpdatedAt,
+			&review.CreatedAt,
+			&review.UpdatedAt,
+			&review.Version)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+		reviews = append(reviews, &review)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+	metadata = calculateMetadata(totalPaginatedRecords, totalRecords, queryInput.Page, queryInput.PageSize)
+	return reviews, metadata, nil
 }
