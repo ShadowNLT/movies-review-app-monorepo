@@ -60,3 +60,9 @@ func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.
 func (app *application) conflictResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.errorResponse(w, r, http.StatusConflict, err.Error())
 }
+
+// This helper is for when we want to send a 429 Too Many Requests response
+func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	message := "rate limit exceeded"
+	app.errorResponse(w, r, http.StatusTooManyRequests, message)
+}
