@@ -1,21 +1,16 @@
 package data
 
 import (
+	"cinepulse.nlt.net/internal/data/movie_reviews"
 	"database/sql"
-	"errors"
-)
-
-var (
-	ErrRecordNotFound = errors.New("record not found")
-	ErrEditConflict   = errors.New("edit conflict")
 )
 
 type Models struct {
-	MovieReviews MovieReviewModel
+	MovieReviews movie_reviews.MovieReviewModel
 }
 
 func NewModels(db *sql.DB) Models {
 	return Models{
-		MovieReviews: MovieReviewModel{DB: db},
+		MovieReviews: movie_reviews.MovieReviewModel{DB: db},
 	}
 }

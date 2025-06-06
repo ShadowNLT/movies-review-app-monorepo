@@ -1,7 +1,9 @@
 package main
 
 import (
-	"cinepulse.nlt.net/internal/data"
+	"cinepulse.nlt.net/internal/data/movie_reviews"
+	"cinepulse.nlt.net/internal/data/movie_reviews/inputs"
+	"cinepulse.nlt.net/internal/data/shared"
 	"cinepulse.nlt.net/internal/validator"
 	"errors"
 	"fmt"
@@ -10,7 +12,7 @@ import (
 
 // Handler for "POST /v1/reviews" endpoint
 func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.Request) {
-	var input data.CreateMovieReviewInput
+	var input inputs.CreateMovieReviewInput
 
 	// To calculate the maxBytes that this payload can ever be
 	// We look at each property.
@@ -31,7 +33,7 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 	}
 
 	v := validator.New()
-	if data.ValidateCreateMovieReviewInput(v, &input); !v.Valid() {
+	if inputs.ValidateCreateMovieReviewInput(v, &input); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -39,7 +41,7 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 	result, err := app.models.MovieReviews.Insert(&input)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrDuplicateImdbID):
+		case errors.Is(err, movie_reviews.ErrDuplicateImdbID):
 			app.conflictResponse(w, r, errors.New("a review for the same imdb ID already exists"))
 		default:
 			app.serverErrorResponse(w, r, err)
@@ -59,7 +61,7 @@ func (app *application) createMovieReviewHandler(w http.ResponseWriter, r *http.
 
 // Handler for "GET /v1/reviews" endpoint
 func (app *application) listMovieReviewsHandler(w http.ResponseWriter, r *http.Request) {
-	var input data.ListMovieReviewsQueryInput
+	var input inputs.ListMovieReviewsQueryInput
 
 	v := validator.New()
 	qs := r.URL.Query()
@@ -67,7 +69,7 @@ func (app *application) listMovieReviewsHandler(w http.ResponseWriter, r *http.R
 	input.Page = app.readInt(qs, "page", 1, v)
 	input.PageSize = app.readInt(qs, "page_size", 20, v)
 
-	if data.ValidateListMovieReviewsQueryInput(v, &input); !v.Valid() {
+	if inputs.ValidateListMovieReviewsQueryInput(v, &input); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -96,7 +98,7 @@ func (app *application) showMovieReviewHandler(w http.ResponseWriter, r *http.Re
 	movieReview, err := app.models.MovieReviews.Get(id)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
+		case errors.Is(err, shared.ErrRecordNotFound):
 			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
@@ -121,7 +123,7 @@ func (app *application) deleteMovieReviewHandler(w http.ResponseWriter, r *http.
 	err = app.models.MovieReviews.Delete(id)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
+		case errors.Is(err, shared.ErrRecordNotFound):
 			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
@@ -146,14 +148,14 @@ func (app *application) updateMovieReviewHandler(w http.ResponseWriter, r *http.
 	movieReviewVersion, err := app.models.MovieReviews.GetVersionFor(id)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
+		case errors.Is(err, shared.ErrRecordNotFound):
 			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
 		return
 	}
-	var input data.UpdateMovieReviewInput
+	var input inputs.UpdateMovieReviewInput
 	err = app.readJSON(w, r, &input, 2048)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
@@ -166,7 +168,7 @@ func (app *application) updateMovieReviewHandler(w http.ResponseWriter, r *http.
 	}
 
 	v := validator.New()
-	if data.ValidateUpdateMovieReviewInput(v, &input); !v.Valid() {
+	if inputs.ValidateUpdateMovieReviewInput(v, &input); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -174,7 +176,7 @@ func (app *application) updateMovieReviewHandler(w http.ResponseWriter, r *http.
 	result, err := app.models.MovieReviews.Update(&input, id, movieReviewVersion)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrEditConflict):
+		case errors.Is(err, shared.ErrEditConflict):
 			app.conflictResponse(w, r, errors.New("unable to update the record due to an edit conflict, please try again"))
 			return
 		default:

@@ -40,7 +40,7 @@ func (app *application) serve() error {
 
 	app.logger.Info("starting server", "addr", srv.Addr, "env", app.config.env)
 
-	// Calling Shutdown() on our server will cause ListenAndServe to immediately return a
+	// Calling Shutdown() on our server will cause ListenAndServe to immediately return an
 	// http.ErrServerClosed error. So if we see this error, it is actually a good thing and an
 	// indication that the graceful shutdown has started.
 

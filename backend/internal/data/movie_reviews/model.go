@@ -1,7 +1,8 @@
-package data
+package movie_reviews
 
 import (
-	"cinepulse.nlt.net/internal/validator"
+	"cinepulse.nlt.net/internal/data/movie_reviews/inputs"
+	"cinepulse.nlt.net/internal/data/shared"
 	"context"
 	"database/sql"
 	"errors"
@@ -9,7 +10,6 @@ import (
 	"github.com/lib/pq"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 var (
@@ -47,68 +47,17 @@ type MovieReview struct {
 	Version   int64                   `json:"version"` // This will be incremented every time the user edits any of the editable information about the review
 }
 
-type CreateMovieReviewInput struct {
-	ImdbID           string `json:"imdb_id"`
-	Rating           int8   `json:"rating"`
-	StatementComment string `json:"statement_comment"`
-}
-
-type ListMovieReviewsQueryInput struct {
-	Page     int
-	PageSize int
-}
-
-func (i ListMovieReviewsQueryInput) limit() int {
-	return i.PageSize
-}
-
-func (i ListMovieReviewsQueryInput) offset() int {
-	return (i.Page - 1) * i.PageSize
-}
-
 type CreatedMovieReview struct {
 	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	Version   int64     `json:"version"`
 }
 
-type UpdateMovieReviewInput struct {
-	Rating           *int8   `json:"rating"`
-	StatementComment *string `json:"statement_comment"`
-}
-
-func ValidateCreateMovieReviewInput(v *validator.Validator, input *CreateMovieReviewInput) {
-	v.AddErrorIfNot(strings.TrimSpace(input.ImdbID) != "", "imdb_id", "must be provided")
-	v.AddErrorIfNot(input.Rating >= 1, "rating", "must be greater than zero")
-	v.AddErrorIfNot(input.Rating <= 5, "rating", "must be at most equal to 5")
-	v.AddErrorIfNot(input.StatementComment != "", "statement_comment", "must be provided")
-	v.AddErrorIfNot(utf8.RuneCountInString(input.StatementComment) <= 280, "statement_comment", "must not have more than 280 characters")
-}
-
-func ValidateUpdateMovieReviewInput(v *validator.Validator, input *UpdateMovieReviewInput) {
-	if input.Rating != nil {
-		v.AddErrorIfNot(*input.Rating >= 1, "rating", "must be greater than zero")
-		v.AddErrorIfNot(*input.Rating <= 5, "rating", "must be at most equal to 5")
-	}
-
-	if input.StatementComment != nil {
-		v.AddErrorIfNot(*input.StatementComment != "", "statement_comment", "must be provided")
-		v.AddErrorIfNot(utf8.RuneCountInString(*input.StatementComment) <= 280, "statement_comment", "must not have more than 280 characters")
-	}
-}
-
-func ValidateListMovieReviewsQueryInput(v *validator.Validator, input *ListMovieReviewsQueryInput) {
-	v.AddErrorIfNot(input.Page > 0, "page", "must be greater than zero")
-	v.AddErrorIfNot(input.Page <= 10_000_000, "page", "must be a maximum of 10 million")
-	v.AddErrorIfNot(input.PageSize > 0, "page_size", "must be greater than zero")
-	v.AddErrorIfNot(input.PageSize <= 100, "page_size", "must be a maximum of 100")
-}
-
 type MovieReviewModel struct {
 	DB *sql.DB
 }
 
-func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (*CreatedMovieReview, error) {
+func (m MovieReviewModel) Insert(review *inputs.CreateMovieReviewInput) (*CreatedMovieReview, error) {
 	query := `
          INSERT INTO movie_reviews (
                                     imdb_id,
@@ -137,7 +86,7 @@ func (m MovieReviewModel) Insert(review *CreateMovieReviewInput) (*CreatedMovieR
 
 func (m MovieReviewModel) GetVersionFor(id int64) (int64, error) {
 	if id < 1 {
-		return 0, ErrRecordNotFound
+		return 0, shared.ErrRecordNotFound
 	}
 
 	query := `
@@ -153,7 +102,7 @@ func (m MovieReviewModel) GetVersionFor(id int64) (int64, error) {
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return 0, ErrRecordNotFound
+			return 0, shared.ErrRecordNotFound
 		default:
 			return 0, err
 		}
@@ -163,7 +112,7 @@ func (m MovieReviewModel) GetVersionFor(id int64) (int64, error) {
 
 func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
 	if id < 1 {
-		return nil, ErrRecordNotFound
+		return nil, shared.ErrRecordNotFound
 	}
 
 	query := `
@@ -192,7 +141,7 @@ func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
+			return nil, shared.ErrRecordNotFound
 		default:
 			return nil, err
 		}
@@ -201,7 +150,7 @@ func (m MovieReviewModel) Get(id int64) (*MovieReview, error) {
 	return &movieReview, nil
 }
 
-func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id, version int64) (*MovieReview, error) {
+func (m MovieReviewModel) Update(input *inputs.UpdateMovieReviewInput, id, version int64) (*MovieReview, error) {
 	var (
 		args       []any
 		setClauses []string
@@ -251,7 +200,7 @@ func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id, version int6
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return &MovieReview{}, ErrEditConflict
+			return &MovieReview{}, shared.ErrEditConflict
 		default:
 			return &MovieReview{}, err
 		}
@@ -262,7 +211,7 @@ func (m MovieReviewModel) Update(input *UpdateMovieReviewInput, id, version int6
 
 func (m MovieReviewModel) Delete(id int64) error {
 	if id < 1 {
-		return ErrRecordNotFound
+		return shared.ErrRecordNotFound
 	}
 
 	query := `
@@ -282,13 +231,13 @@ func (m MovieReviewModel) Delete(id int64) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return ErrRecordNotFound
+		return shared.ErrRecordNotFound
 	}
 	return nil
 
 }
 
-func (m MovieReviewModel) GetAll(queryInput *ListMovieReviewsQueryInput) (reviews []*MovieReview, metadata Metadata, err error) {
+func (m MovieReviewModel) GetAll(queryInput *inputs.ListMovieReviewsQueryInput) (reviews []*MovieReview, metadata shared.Metadata, err error) {
 	query := `
        	SELECT count(*) OVER(), id, imdb_id, rating, statement_comment, statement_created_at, statement_updated_at, created_at, updated_at, version
         FROM movie_reviews
@@ -302,11 +251,11 @@ func (m MovieReviewModel) GetAll(queryInput *ListMovieReviewsQueryInput) (review
 	totalRecords := 0
 	err = m.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM movie_reviews").Scan(&totalRecords)
 
-	args := []any{queryInput.limit(), queryInput.offset()}
+	args := []any{queryInput.Limit(), queryInput.Offset()}
 
 	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, Metadata{}, err
+		return nil, shared.Metadata{}, err
 	}
 
 	defer func(rows *sql.Rows) {
@@ -341,14 +290,14 @@ func (m MovieReviewModel) GetAll(queryInput *ListMovieReviewsQueryInput) (review
 			&review.UpdatedAt,
 			&review.Version)
 		if err != nil {
-			return nil, Metadata{}, err
+			return nil, shared.Metadata{}, err
 		}
 		reviews = append(reviews, &review)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, Metadata{}, err
+		return nil, shared.Metadata{}, err
 	}
-	metadata = calculateMetadata(totalPaginatedRecords, totalRecords, queryInput.Page, queryInput.PageSize)
+	metadata = shared.CalculateMetadata(totalPaginatedRecords, totalRecords, queryInput.Page, queryInput.PageSize)
 	return reviews, metadata, nil
 }

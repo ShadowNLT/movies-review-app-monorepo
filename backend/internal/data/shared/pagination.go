@@ -1,4 +1,4 @@
-package data
+package shared
 
 type Metadata struct {
 	CurrentPage  int `json:"current_page,omitempty"`
@@ -8,7 +8,7 @@ type Metadata struct {
 	TotalRecords int `json:"total_records,omitempty"`
 }
 
-func calculateMetadata(totalPaginatedRecords, totalRecords, page, pageSize int) Metadata {
+func CalculateMetadata(totalPaginatedRecords, totalRecords, page, pageSize int) Metadata {
 	if totalRecords == 0 {
 		return Metadata{}
 	}
