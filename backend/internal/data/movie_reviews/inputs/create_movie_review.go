@@ -13,9 +13,9 @@ type CreateMovieReviewInput struct {
 }
 
 func ValidateCreateMovieReviewInput(v *validator.Validator, input *CreateMovieReviewInput) {
-	v.AddErrorIfNot(strings.TrimSpace(input.ImdbID) != "", "imdb_id", "must be provided")
+	v.RequiredString(strings.TrimSpace(input.ImdbID), "imdb_id")
 	v.AddErrorIfNot(input.Rating >= 1, "rating", "must be greater than zero")
 	v.AddErrorIfNot(input.Rating <= 5, "rating", "must be at most equal to 5")
-	v.AddErrorIfNot(input.StatementComment != "", "statement_comment", "must be provided")
+	v.RequiredString(input.StatementComment, "statement_comment")
 	v.AddErrorIfNot(utf8.RuneCountInString(input.StatementComment) <= 280, "statement_comment", "must not have more than 280 characters")
 }

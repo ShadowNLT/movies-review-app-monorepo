@@ -17,7 +17,7 @@ func ValidateUpdateMovieReviewInput(v *validator.Validator, input *UpdateMovieRe
 	}
 
 	if input.StatementComment != nil {
-		v.AddErrorIfNot(*input.StatementComment != "", "statement_comment", "must be provided")
+		v.RequiredString(*input.StatementComment, "statement_comment")
 		v.AddErrorIfNot(utf8.RuneCountInString(*input.StatementComment) <= 280, "statement_comment", "must not have more than 280 characters")
 	}
 }

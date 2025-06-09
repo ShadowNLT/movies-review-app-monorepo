@@ -58,6 +58,7 @@ type MovieReviewModel struct {
 }
 
 func (m MovieReviewModel) Insert(review *inputs.CreateMovieReviewInput) (*CreatedMovieReview, error) {
+	// TODO add user ID here
 	query := `
          INSERT INTO movie_reviews (
                                     imdb_id,
