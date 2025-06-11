@@ -3,11 +3,15 @@ package main
 import (
 	"cinepulse.nlt.net/internal/data/users"
 	"cinepulse.nlt.net/internal/data/users/inputs"
+	"cinepulse.nlt.net/internal/mailer"
+	"cinepulse.nlt.net/internal/mailer/types"
 	"cinepulse.nlt.net/internal/validator"
 	"errors"
 	"net/http"
+	"time"
 )
 
+// Handler for "POST v1/users/auth/signup" endpoint
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input inputs.CreateUserInput
 
@@ -47,8 +51,20 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 		return
 	}
+	var data = types.UserWelcomeTemplateData{
+		ProfileHandle:  user.ProfileHandle,
+		ActivationLink: "https://cinepulse.nlt.net/users/activation/token=dfgdjfhdjfhdjfhdj",
+		CurrentYear:    time.Now().Year(),
+	}
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil)
+	app.backgroundTask(func() {
+		err = app.mailer.Send(user.Email, mailer.UserWelcomeTemplate, data)
+		if err != nil {
+			app.logger.Error(err.Error())
+		}
+	})
+
+	err = app.writeJSON(w, http.StatusAccepted, envelope{"user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

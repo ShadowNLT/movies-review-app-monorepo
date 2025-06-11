@@ -2,6 +2,7 @@ package main
 
 import (
 	"cinepulse.nlt.net/internal/data"
+	"cinepulse.nlt.net/internal/mailer"
 	"context"
 	"database/sql"
 	"flag"
@@ -27,12 +28,20 @@ type config struct {
 		burst   int
 		enabled bool
 	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 type application struct {
 	config config
 	logger *slog.Logger
 	models data.Models
+	mailer mailer.Mailer
 }
 
 func main() {
@@ -52,6 +61,13 @@ func main() {
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 5, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	// SMTP Server settings
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP server hostname")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP server port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "7e2b038aabb590", "SMTP server username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "33a52a668e70c9", "SMTP server password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Cinepulse <no-reply@cinepulse.nlt.net>", "SMTP server username")
 
 	flag.Parse()
 
@@ -78,6 +94,7 @@ func main() {
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
+		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
 	err = app.serve()

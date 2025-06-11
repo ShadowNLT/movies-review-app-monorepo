@@ -28,9 +28,11 @@ type User struct {
 }
 
 type CreatedUserOutput struct {
-	ID        int64     `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	Version   int       `json:"version"`
+	ID            int64     `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	Version       int       `json:"version"`
+	Email         string    `json:"email"`
+	ProfileHandle string    `json:"profile_handle"`
 }
 
 type UserModel struct {
@@ -80,13 +82,19 @@ func (m UserModel) Insert(user *inputs.CreateUserInput) (*CreatedUserOutput, err
 	query := `
          INSERT INTO users (email, password_hash, handle, location, date_of_birth)
          VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, created_at, version`
+         RETURNING id, created_at, version, email, handle`
 	args := []any{user.Email, user.Password.Hash, user.ProfileHandle, user.Location, user.DateOfBirth}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var createdUser CreatedUserOutput
-	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&createdUser.ID, &createdUser.CreatedAt, &createdUser.Version)
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&createdUser.ID,
+		&createdUser.CreatedAt,
+		&createdUser.Version,
+		&createdUser.Email,
+		&createdUser.ProfileHandle,
+	)
 	if err != nil {
 		switch {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:

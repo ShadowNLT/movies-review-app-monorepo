@@ -1,0 +1,21 @@
+
+{{define "subject"}}Welcome to CinePulse — Activate Your Account! {{end}}
+
+
+{{define "plainBody"}}
+Hi {{.ProfileHandle}},
+
+Thank you for joining CinePulse — the ultimate social platform for movie lovers to rate, discuss, and discover films together.
+
+Before you dive in and start sharing your pulse on the latest releases, please activate your account by clicking the link below:
+
+{{.ActivationLink}}
+
+If you didn’t create an account with us, please ignore this email or let us know.
+
+---
+
+“Cinema is a matter of what's in the frame and what's out.” – Martin Scorsese
+
+© {{.CurrentYear}} CinePulse. All rights reserved.
+{{end}}

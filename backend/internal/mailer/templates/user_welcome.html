@@ -1,0 +1,48 @@
+{{define "htmlBody"}}
+<!DOCTYPE html>
+<html lang="en" style="background-color: #2A2A2A; margin:0; padding:0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Welcome to CinePulse!</title>
+</head>
+<body style="background-color: #2A2A2A; color: #FFFFFF; margin: 0; padding: 0;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 40px auto; background-color: #1D1D1D; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+    <tr>
+        <td style="padding: 24px; text-align: center; border-bottom: 2px solid #E63946;">
+            <h1 style="margin: 0; font-size: 2.5rem; color: #E63946; letter-spacing: 2px;">Welcome to CinePulse!</h1>
+        </td>
+    </tr>
+
+    <tr>
+        <td style="padding: 24px; color: #CCCCCC; font-size: 1.1rem; line-height: 1.6;">
+            <p>Hi {{.ProfileHandle}},</p>
+            <p>Thank you for joining CinePulse — the ultimate social platform for movie lovers to rate, discuss, and discover films together.</p>
+            <p>Before you dive in and start sharing your pulse on the latest releases, please activate your account by clicking the button below:</p>
+
+            <p style="text-align: center; margin: 36px 0;">
+                <a href="{{.ActivationLink}}" target="_blank" rel="noopener"
+                   style="background-color: #E63946; color: #FFFFFF; padding: 14px 28px; text-decoration: none; font-weight: 700; border-radius: 30px; display: inline-block; box-shadow: 0 4px 12px rgba(230,57,70,0.7); transition: background-color 0.3s ease;">
+                    Activate My Account
+                </a>
+            </p>
+
+            <p>If you didn’t create an account with us, please ignore this email or let us know.</p>
+
+            <hr style="border: none; border-top: 1px solid #444; margin: 32px 0;" />
+
+            <p style="font-size: 0.9rem; color: #F4C430; text-align: center;">
+                “Cinema is a matter of what's in the frame and what's out.” – Martin Scorsese
+            </p>
+        </td>
+    </tr>
+
+    <tr>
+        <td style="padding: 20px; text-align: center; font-size: 0.9rem; color: #38B000;">
+            © {{.CurrentYear}} CinePulse. All rights reserved.
+        </td>
+    </tr>
+</table>
+</body>
+</html>
+{{end}}
