@@ -9,6 +9,7 @@ import (
 	_ "github.com/lib/pq"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,7 @@ type application struct {
 	logger *slog.Logger
 	models data.Models
 	mailer mailer.Mailer
+	wg     sync.WaitGroup
 }
 
 func main() {

@@ -35,7 +35,13 @@ func (app *application) serve() error {
 		defer cancel()
 
 		// Gracefully shutdown the server
-		shutdownError <- srv.Shutdown(ctx)
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			shutdownError <- err
+		}
+		app.logger.Info("completing background tasks", "addr", srv.Addr)
+		app.wg.Wait()
+		shutdownError <- nil
 	}()
 
 	app.logger.Info("starting server", "addr", srv.Addr, "env", app.config.env)

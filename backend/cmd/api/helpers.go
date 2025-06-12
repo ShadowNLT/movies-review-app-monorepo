@@ -143,7 +143,11 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 // backgroundTask() helper accepts an arbitrary function as parameter which should be run as a background task in
 // a separate Goroutine
 func (app *application) backgroundTask(fn func()) {
+	app.wg.Add(1)
+
 	go func() {
+		defer app.wg.Done()
+
 		// Panic recovery
 		defer func() {
 			if err := recover(); err != nil {
